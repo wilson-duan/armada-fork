@@ -889,7 +889,6 @@ func (srv *PulsarSubmitServer) createJobsObjects(request *api.JobSubmitRequest, 
 	responseItems := make([]*api.JobSubmitResponseItem, 0, len(request.JobRequestItems))
 	for i, item := range request.JobRequestItems {
 		jobId := getUlid()
-
 		if item.PodSpec != nil && len(item.PodSpecs) > 0 {
 			response := &api.JobSubmitResponseItem{
 				JobId: jobId,
@@ -965,6 +964,8 @@ func (srv *PulsarSubmitServer) createJobsObjects(request *api.JobSubmitRequest, 
 			QueueOwnershipUserGroups:           nil,
 			CompressedQueueOwnershipUserGroups: compressedOwnershipGroups,
 			QueueTtlSeconds:                    item.QueueTtlSeconds,
+			JobSpec:                            item.JobSpec,
+			JobSpecs:                           item.JobSpecs,
 		}
 		jobs = append(jobs, j)
 	}

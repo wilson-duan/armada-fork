@@ -89,12 +89,35 @@ func ValidateApiJob(job *api.Job, config configuration.SubmissionConfig) error {
 }
 
 func ValidateApiJobPodSpecs(j *api.Job) error {
-	if j.PodSpec == nil && len(j.PodSpecs) == 0 {
+	hasAtleastOneJobSpec := j.JobSpec != nil || len(j.JobSpecs) > 0
+	hasAtLeastOnePodSpec := j.PodSpec != nil || len(j.PodSpecs) > 0
+	if !hasAtleastOneJobSpec && !hasAtLeastOnePodSpec {
 		return errors.WithStack(&armadaerrors.ErrInvalidArgument{
-			Name:    "PodSpec",
-			Value:   j.PodSpec,
-			Message: "Job does not contain at least one PodSpec",
+			Name:    "JobSpec",
+			Value:   j.JobSpec,
+			Message: "Job does not contain at least one JobSpec or PodSpec",
 		})
+	}
+	if hasAtleastOneJobSpec && hasAtLeastOnePodSpec {
+		return errors.WithStack(&armadaerrors.ErrInvalidArgument{
+			Name:    "JobSpec",
+			Value:   j.JobSpec,
+			Message: "Job contains both JobSpec and PodSpec",
+		})
+	}
+	if hasAtleastOneJobSpec {
+		if j.JobSpec == nil && len(j.JobSpecs) == 1 {
+			j.JobSpec = j.JobSpecs[0]
+			j.JobSpecs = nil
+		}
+		if len(j.JobSpecs) > 1 {
+			return errors.WithStack(&armadaerrors.ErrInvalidArgument{
+				Name:    "JobSpecs",
+				Value:   j.JobSpecs,
+				Message: "Jobs with multiple job specs are not supported",
+			})
+		}
+		j.PodSpec = &j.JobSpec.Template.Spec
 	}
 
 	// We only support jobs with a single PodSpec, and it must be set to j.PodSpec.

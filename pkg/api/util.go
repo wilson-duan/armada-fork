@@ -2,6 +2,7 @@ package api
 
 import (
 	"fmt"
+	batchv1 "k8s.io/api/batch/v1"
 	"math"
 	"strings"
 	"time"
@@ -194,11 +195,37 @@ func (job *Job) GetResourceRequirements() v1.ResourceRequirements {
 	// Use pre-computed schedulingResourceRequirements if available.
 	// Otherwise compute it from the containers in podSpec.
 	podSpec := job.GetMainPodSpec()
+	var requirements v1.ResourceRequirements
 	if len(job.SchedulingResourceRequirements.Requests) > 0 || len(job.SchedulingResourceRequirements.Limits) > 0 {
-		return job.SchedulingResourceRequirements
-	} else {
-		return SchedulingResourceRequirementsFromPodSpec(podSpec)
+		requirements = job.SchedulingResourceRequirements
 	}
+	return CalculateResourceRequirements(podSpec, job.JobSpec, requirements)
+}
+
+func CalculateResourceRequirements(podSpec *v1.PodSpec, jobSpec *batchv1.JobSpec, requirements v1.ResourceRequirements) v1.ResourceRequirements {
+	if podSpec == nil {
+		podSpec = &jobSpec.Template.Spec
+	}
+	if len(requirements.Requests) == 0 && len(requirements.Limits) == 0 {
+		requirements = SchedulingResourceRequirementsFromPodSpec(podSpec)
+	}
+	if jobSpec != nil {
+		parallelism := 1
+		if jobSpec.Parallelism != nil {
+			parallelism = int(*jobSpec.Parallelism)
+		}
+		for resource := range requirements.Requests {
+			quantity := requirements.Requests[resource]
+			quantity.Set(quantity.Value() * int64(parallelism))
+			requirements.Requests[resource] = quantity
+		}
+		for resource := range requirements.Limits {
+			quantity := requirements.Limits[resource]
+			quantity.Set(quantity.Value() * int64(parallelism))
+			requirements.Limits[resource] = quantity
+		}
+	}
+	return requirements
 }
 
 // GetSchedulingKey returns the scheduling key associated with a job.
@@ -264,12 +291,18 @@ func (job *Job) GetMainPodSpec() *v1.PodSpec {
 }
 
 func (job *JobSubmitRequestItem) GetMainPodSpec() *v1.PodSpec {
-	if job.PodSpec != nil {
+	switch {
+	case job.JobSpec != nil:
+		return &job.JobSpec.Template.Spec
+	case job.PodSpec != nil:
 		return job.PodSpec
-	} else if len(job.PodSpecs) > 0 {
+	case len(job.PodSpecs) > 0:
 		return job.PodSpecs[0]
+	case len(job.JobSpecs) > 0:
+		return &job.JobSpecs[0].Template.Spec
+	default:
+		return nil
 	}
-	return nil
 }
 
 func (job *Job) TotalResourceRequest() armadaresource.ComputeResources {
