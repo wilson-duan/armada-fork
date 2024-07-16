@@ -897,17 +897,22 @@ func maxTime(a, b time.Time) time.Time {
 	return a
 }
 
-func calculateDemandByQueue(jobs []*jobdb.Job) map[string]schedulerobjects.ResourceList {
-	queueResources := make(map[string]schedulerobjects.ResourceList)
+func calculateDemandByQueue(jobs []*jobdb.Job) map[string]schedulerobjects.QuantityByTAndResourceType[string] {
+	queueResources := make(map[string]schedulerobjects.QuantityByTAndResourceType[string])
 
 	for _, job := range jobs {
 		if job.InTerminalState() {
 			continue
 		}
-		r, ok := queueResources[job.Queue()]
+		resourcesByPriorityClass, ok := queueResources[job.Queue()]
+		if !ok {
+			resourcesByPriorityClass = schedulerobjects.QuantityByTAndResourceType[string]{}
+			queueResources[job.Queue()] = resourcesByPriorityClass
+		}
+		r, ok := resourcesByPriorityClass[job.PriorityClassName()]
 		if !ok {
 			r = schedulerobjects.NewResourceList(len(job.PodRequirements().ResourceRequirements.Requests))
-			queueResources[job.Queue()] = r
+			resourcesByPriorityClass[job.PriorityClassName()] = r
 		}
 		r.AddV1ResourceList(job.PodRequirements().ResourceRequirements.Requests)
 	}

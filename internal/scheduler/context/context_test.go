@@ -53,7 +53,7 @@ func TestSchedulingContextAccounting(t *testing.T) {
 		},
 	}
 	for _, queue := range []string{"A", "B"} {
-		err := sctx.AddQueueSchedulingContext(queue, priorityFactorByQueue[queue], allocatedByQueueAndPriorityClass[queue], schedulerobjects.ResourceList{}, nil)
+		err := sctx.AddQueueSchedulingContext(queue, priorityFactorByQueue[queue], allocatedByQueueAndPriorityClass[queue], schedulerobjects.QuantityByTAndResourceType[string]{}, nil)
 		require.NoError(t, err)
 	}
 
@@ -115,6 +115,12 @@ func TestJobSchedulingContext_SetAssignedNodeId(t *testing.T) {
 }
 
 func TestCalculateFairShares(t *testing.T) {
+	atPriorityClass := func(pc string, rl schedulerobjects.ResourceList) schedulerobjects.QuantityByTAndResourceType[string] {
+		return schedulerobjects.QuantityByTAndResourceType[string]{
+			pc: rl,
+		}
+	}
+
 	zeroCpu := schedulerobjects.ResourceList{
 		Resources: map[string]resource.Quantity{"cpu": resource.MustParse("0")},
 	}
@@ -139,7 +145,7 @@ func TestCalculateFairShares(t *testing.T) {
 		"one queue, demand exceeds capacity": {
 			availableResources: oneHundredCpu,
 			queueCtxs: map[string]*QueueSchedulingContext{
-				"queueA": {Weight: 1.0, Demand: oneThousandCpu},
+				"queueA": {Weight: 1.0, Demand: atPriorityClass("pc1", oneThousandCpu)},
 			},
 			expectedFairShares:         map[string]float64{"queueA": 1.0},
 			expectedAdjustedFairShares: map[string]float64{"queueA": 1.0},
@@ -147,7 +153,7 @@ func TestCalculateFairShares(t *testing.T) {
 		"one queue, demand less than capacity": {
 			availableResources: oneHundredCpu,
 			queueCtxs: map[string]*QueueSchedulingContext{
-				"queueA": {Weight: 1.0, Demand: oneCpu},
+				"queueA": {Weight: 1.0, Demand: atPriorityClass("pc1", oneCpu)},
 			},
 			expectedFairShares:         map[string]float64{"queueA": 1.0},
 			expectedAdjustedFairShares: map[string]float64{"queueA": 0.01},
@@ -155,8 +161,8 @@ func TestCalculateFairShares(t *testing.T) {
 		"two queues, equal weights, demand exceeds capacity": {
 			availableResources: oneHundredCpu,
 			queueCtxs: map[string]*QueueSchedulingContext{
-				"queueA": {Weight: 1.0, Demand: oneThousandCpu},
-				"queueB": {Weight: 1.0, Demand: oneThousandCpu},
+				"queueA": {Weight: 1.0, Demand: atPriorityClass("pc1", oneThousandCpu)},
+				"queueB": {Weight: 1.0, Demand: atPriorityClass("pc1", oneThousandCpu)},
 			},
 			expectedFairShares:         map[string]float64{"queueA": 0.5, "queueB": 0.5},
 			expectedAdjustedFairShares: map[string]float64{"queueA": 0.5, "queueB": 0.5},
@@ -164,8 +170,8 @@ func TestCalculateFairShares(t *testing.T) {
 		"two queues, equal weights, demand less than capacity for both queues": {
 			availableResources: oneHundredCpu,
 			queueCtxs: map[string]*QueueSchedulingContext{
-				"queueA": {Weight: 1.0, Demand: oneCpu},
-				"queueB": {Weight: 1.0, Demand: oneCpu},
+				"queueA": {Weight: 1.0, Demand: atPriorityClass("pc1", oneCpu)},
+				"queueB": {Weight: 1.0, Demand: atPriorityClass("pc1", oneCpu)},
 			},
 			expectedFairShares:         map[string]float64{"queueA": 0.5, "queueB": 0.5},
 			expectedAdjustedFairShares: map[string]float64{"queueA": 0.01, "queueB": 0.01},
@@ -173,8 +179,8 @@ func TestCalculateFairShares(t *testing.T) {
 		"two queues, equal weights, demand less than capacity for one queue": {
 			availableResources: oneHundredCpu,
 			queueCtxs: map[string]*QueueSchedulingContext{
-				"queueA": {Weight: 1.0, Demand: oneCpu},
-				"queueB": {Weight: 1.0, Demand: oneThousandCpu},
+				"queueA": {Weight: 1.0, Demand: atPriorityClass("pc1", oneCpu)},
+				"queueB": {Weight: 1.0, Demand: atPriorityClass("pc1", oneThousandCpu)},
 			},
 			expectedFairShares:         map[string]float64{"queueA": 0.5, "queueB": 0.5},
 			expectedAdjustedFairShares: map[string]float64{"queueA": 0.01, "queueB": 0.99},
@@ -182,8 +188,8 @@ func TestCalculateFairShares(t *testing.T) {
 		"two queues, non equal weights, demand exceeds capacity for both queues": {
 			availableResources: oneHundredCpu,
 			queueCtxs: map[string]*QueueSchedulingContext{
-				"queueA": {Weight: 1.0, Demand: oneThousandCpu},
-				"queueB": {Weight: 3.0, Demand: oneThousandCpu},
+				"queueA": {Weight: 1.0, Demand: atPriorityClass("pc1", oneThousandCpu)},
+				"queueB": {Weight: 3.0, Demand: atPriorityClass("pc1", oneThousandCpu)},
 			},
 			expectedFairShares:         map[string]float64{"queueA": 0.25, "queueB": 0.75},
 			expectedAdjustedFairShares: map[string]float64{"queueA": 0.25, "queueB": 0.75},
@@ -191,8 +197,8 @@ func TestCalculateFairShares(t *testing.T) {
 		"two queues, non equal weights, demand exceeds capacity for higher priority queue only": {
 			availableResources: oneHundredCpu,
 			queueCtxs: map[string]*QueueSchedulingContext{
-				"queueA": {Weight: 1.0, Demand: oneCpu},
-				"queueB": {Weight: 3.0, Demand: oneThousandCpu},
+				"queueA": {Weight: 1.0, Demand: atPriorityClass("pc1", oneCpu)},
+				"queueB": {Weight: 3.0, Demand: atPriorityClass("pc1", oneThousandCpu)},
 			},
 			expectedFairShares:         map[string]float64{"queueA": 0.25, "queueB": 0.75},
 			expectedAdjustedFairShares: map[string]float64{"queueA": 0.01, "queueB": 0.99},
@@ -200,8 +206,8 @@ func TestCalculateFairShares(t *testing.T) {
 		"two queues, non equal weights, demand exceeds capacity for lower priority queue only": {
 			availableResources: oneHundredCpu,
 			queueCtxs: map[string]*QueueSchedulingContext{
-				"queueA": {Weight: 1.0, Demand: oneThousandCpu},
-				"queueB": {Weight: 3.0, Demand: oneCpu},
+				"queueA": {Weight: 1.0, Demand: atPriorityClass("pc1", oneThousandCpu)},
+				"queueB": {Weight: 3.0, Demand: atPriorityClass("pc1", oneCpu)},
 			},
 			expectedFairShares:         map[string]float64{"queueA": 0.25, "queueB": 0.75},
 			expectedAdjustedFairShares: map[string]float64{"queueA": 0.99, "queueB": 0.01},
@@ -209,9 +215,9 @@ func TestCalculateFairShares(t *testing.T) {
 		"three queues, equal weights. Adjusted fair share requires multiple iterations": {
 			availableResources: oneHundredCpu,
 			queueCtxs: map[string]*QueueSchedulingContext{
-				"queueA": {Weight: 1.0, Demand: oneCpu},
-				"queueB": {Weight: 1.0, Demand: fortyCpu},
-				"queueC": {Weight: 1.0, Demand: oneThousandCpu},
+				"queueA": {Weight: 1.0, Demand: atPriorityClass("pc1", oneCpu)},
+				"queueB": {Weight: 1.0, Demand: atPriorityClass("pc1", fortyCpu)},
+				"queueC": {Weight: 1.0, Demand: atPriorityClass("pc1", oneThousandCpu)},
 			},
 			expectedFairShares:         map[string]float64{"queueA": 1.0 / 3, "queueB": 1.0 / 3, "queueC": 1.0 / 3},
 			expectedAdjustedFairShares: map[string]float64{"queueA": 0.01, "queueB": 0.4, "queueC": 0.59},
@@ -219,9 +225,9 @@ func TestCalculateFairShares(t *testing.T) {
 		"No demand": {
 			availableResources: oneHundredCpu,
 			queueCtxs: map[string]*QueueSchedulingContext{
-				"queueA": {Weight: 1.0, Demand: zeroCpu},
-				"queueB": {Weight: 1.0, Demand: zeroCpu},
-				"queueC": {Weight: 1.0, Demand: zeroCpu},
+				"queueA": {Weight: 1.0, Demand: atPriorityClass("pc1", zeroCpu)},
+				"queueB": {Weight: 1.0, Demand: atPriorityClass("pc1", zeroCpu)},
+				"queueC": {Weight: 1.0, Demand: atPriorityClass("pc1", zeroCpu)},
 			},
 			expectedFairShares:         map[string]float64{"queueA": 1.0 / 3, "queueB": 1.0 / 3, "queueC": 1.0 / 3},
 			expectedAdjustedFairShares: map[string]float64{"queueA": 0.0, "queueB": 0.0, "queueC": 0.0},
@@ -229,9 +235,9 @@ func TestCalculateFairShares(t *testing.T) {
 		"No capacity": {
 			availableResources: zeroCpu,
 			queueCtxs: map[string]*QueueSchedulingContext{
-				"queueA": {Weight: 1.0, Demand: oneCpu},
-				"queueB": {Weight: 1.0, Demand: oneCpu},
-				"queueC": {Weight: 1.0, Demand: oneCpu},
+				"queueA": {Weight: 1.0, Demand: atPriorityClass("pc1", oneCpu)},
+				"queueB": {Weight: 1.0, Demand: atPriorityClass("pc1", oneCpu)},
+				"queueC": {Weight: 1.0, Demand: atPriorityClass("pc1", oneCpu)},
 			},
 			expectedFairShares:         map[string]float64{"queueA": 1.0 / 3, "queueB": 1.0 / 3, "queueC": 1.0 / 3},
 			expectedAdjustedFairShares: map[string]float64{"queueA": 1.0 / 3, "queueB": 1.0 / 3, "queueC": 1.0 / 3},

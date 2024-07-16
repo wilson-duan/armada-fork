@@ -108,7 +108,7 @@ func (sctx *SchedulingContext) ClearUnfeasibleSchedulingKeys() {
 func (sctx *SchedulingContext) AddQueueSchedulingContext(
 	queue string, weight float64,
 	initialAllocatedByPriorityClass schedulerobjects.QuantityByTAndResourceType[string],
-	demand schedulerobjects.ResourceList,
+	demand map[string]schedulerobjects.ResourceList,
 	limiter *rate.Limiter,
 ) error {
 	if _, ok := sctx.QueueSchedulingContexts[queue]; ok {
@@ -186,7 +186,10 @@ func (sctx *SchedulingContext) UpdateFairShares() {
 	for queueName, qctx := range sctx.QueueSchedulingContexts {
 		cappedShare := 1.0
 		if !sctx.TotalResources.IsZero() {
-			cappedShare = sctx.FairnessCostProvider.UnweightedCostFromAllocation(qctx.Demand)
+			cappedShare = 0.0
+			for _, demand := range qctx.CappedDemand {
+				cappedShare += sctx.FairnessCostProvider.UnweightedCostFromAllocation(demand)
+			}
 		}
 		queueInfos = append(queueInfos, &queueInfo{
 			queueName:     queueName,
@@ -411,9 +414,12 @@ type QueueSchedulingContext struct {
 	// Total resources assigned to the queue across all clusters by priority class priority.
 	// Includes jobs scheduled during this invocation of the scheduler.
 	Allocated schedulerobjects.ResourceList
-	// Total demand from this queue.  This is essentially the cumulative resources of all non-terminal jobs at the
+	// Total demand from this queue by priority class.  This is essentially the cumulative resources of all non-terminal jobs at the
 	// start of the scheduling cycle
-	Demand schedulerobjects.ResourceList
+	Demand map[string]schedulerobjects.ResourceList
+	// CappedDemand from this queue by priority class. This is the same as Demand, but capped to take into account
+	// limits imposed by scheduling constraints.
+	CappedDemand map[string]schedulerobjects.ResourceList
 	// Fair share is the weight of this queue over the sum of the weights of all queues
 	FairShare float64
 	// AdjustedFairShare modifies fair share such that queues that have a demand cost less than their fair share, have their fair share reallocated.

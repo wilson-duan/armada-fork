@@ -84,6 +84,7 @@ var demandPerQueueDesc = prometheus.NewDesc(
 	[]string{
 		"queue",
 		"pool",
+		"priority_class",
 	}, nil,
 )
 
@@ -174,10 +175,12 @@ func generateSchedulerMetrics(schedulingRoundData schedulingRoundData) []prometh
 
 	for key, value := range schedulingRoundData.queuePoolData {
 		result = append(result, prometheus.MustNewConstMetric(consideredJobsDesc, prometheus.GaugeValue, float64(value.numberOfJobsConsidered), key.queue, key.pool))
-		result = append(result, prometheus.MustNewConstMetric(fairSharePerQueueDesc, prometheus.GaugeValue, float64(value.fairShare), key.queue, key.pool))
-		result = append(result, prometheus.MustNewConstMetric(adjustedFairSharePerQueueDesc, prometheus.GaugeValue, float64(value.adjustedFairShare), key.queue, key.pool))
-		result = append(result, prometheus.MustNewConstMetric(actualSharePerQueueDesc, prometheus.GaugeValue, float64(value.actualShare), key.queue, key.pool))
-		result = append(result, prometheus.MustNewConstMetric(demandPerQueueDesc, prometheus.GaugeValue, float64(value.demand), key.queue, key.pool))
+		result = append(result, prometheus.MustNewConstMetric(fairSharePerQueueDesc, prometheus.GaugeValue, value.fairShare, key.queue, key.pool))
+		result = append(result, prometheus.MustNewConstMetric(adjustedFairSharePerQueueDesc, prometheus.GaugeValue, value.adjustedFairShare, key.queue, key.pool))
+		result = append(result, prometheus.MustNewConstMetric(actualSharePerQueueDesc, prometheus.GaugeValue, value.actualShare, key.queue, key.pool))
+		for pc, demand := range value.demandByPriorityClass {
+			result = append(result, prometheus.MustNewConstMetric(demandPerQueueDesc, prometheus.GaugeValue, demand, key.queue, key.pool, pc))
+		}
 	}
 	for key, value := range schedulingRoundData.scheduledJobData {
 		result = append(result, prometheus.MustNewConstMetric(scheduledJobsDesc, prometheus.CounterValue, float64(value), key.queue, key.priorityClass))
@@ -223,13 +226,16 @@ func (metrics *SchedulerMetrics) calculateQueuePoolMetrics(schedulingContexts []
 		for queue, queueContext := range schedContext.QueueSchedulingContexts {
 			key := queuePoolKey{queue: queue, pool: pool}
 			actualShare := schedContext.FairnessCostProvider.UnweightedCostFromQueue(queueContext)
-			demand := schedContext.FairnessCostProvider.UnweightedCostFromAllocation(queueContext.Demand)
+			demandByPc := make(map[string]float64, len(queueContext.Demand))
+			for k, v := range queueContext.Demand {
+				demandByPc[k] = schedContext.FairnessCostProvider.UnweightedCostFromAllocation(v)
+			}
 			result[key] = queuePoolData{
 				numberOfJobsConsidered: len(queueContext.UnsuccessfulJobSchedulingContexts) + len(queueContext.SuccessfulJobSchedulingContexts),
 				fairShare:              queueContext.FairShare,
 				adjustedFairShare:      queueContext.AdjustedFairShare,
 				actualShare:            actualShare,
-				demand:                 demand,
+				demandByPriorityClass:  demandByPc,
 			}
 		}
 	}
@@ -273,5 +279,5 @@ type queuePoolData struct {
 	actualShare            float64
 	fairShare              float64
 	adjustedFairShare      float64
-	demand                 float64
+	demandByPriorityClass  map[string]float64
 }

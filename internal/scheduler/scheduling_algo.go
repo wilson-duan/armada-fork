@@ -219,7 +219,7 @@ func (it *JobQueueIteratorAdapter) Next() (*jobdb.Job, error) {
 type fairSchedulingAlgoContext struct {
 	queues                                   []*api.Queue
 	priorityFactorByQueue                    map[string]float64
-	demandByPoolByQueue                      map[string]map[string]schedulerobjects.ResourceList
+	demandByPoolByQueue                      map[string]map[string]schedulerobjects.QuantityByTAndResourceType[string]
 	totalCapacityByPool                      schedulerobjects.QuantityByTAndResourceType[string]
 	nodesByPoolAndExecutor                   map[string]map[string][]*schedulerobjects.Node
 	jobsByPoolAndExecutor                    map[string]map[string][]*jobdb.Job
@@ -290,7 +290,7 @@ func (l *FairSchedulingAlgo) newFairSchedulingAlgoContext(ctx *armadacontext.Con
 	nodeIdByJobId := make(map[string]string)
 	jobIdsByGangId := make(map[string]map[string]bool)
 	gangIdByJobId := make(map[string]string)
-	demandByPoolByQueue := make(map[string]map[string]schedulerobjects.ResourceList)
+	demandByPoolByQueue := make(map[string]map[string]schedulerobjects.QuantityByTAndResourceType[string])
 
 	for _, job := range txn.GetAll() {
 
@@ -315,15 +315,15 @@ func (l *FairSchedulingAlgo) newFairSchedulingAlgoContext(ctx *armadacontext.Con
 		for _, pool := range pools {
 			poolQueueResources, ok := demandByPoolByQueue[pool]
 			if !ok {
-				poolQueueResources = make(map[string]schedulerobjects.ResourceList, len(queues))
+				poolQueueResources = make(map[string]schedulerobjects.QuantityByTAndResourceType[string], len(queues))
 				demandByPoolByQueue[pool] = poolQueueResources
 			}
 			queueResources, ok := poolQueueResources[job.Queue()]
 			if !ok {
-				queueResources = schedulerobjects.NewResourceList(len(job.PodRequirements().ResourceRequirements.Requests))
-				poolQueueResources[job.Queue()] = queueResources
+				queueResourcesByPriorityClass := make(schedulerobjects.QuantityByTAndResourceType[string])
+				poolQueueResources[job.Queue()] = queueResourcesByPriorityClass
 			}
-			queueResources.AddV1ResourceList(job.PodRequirements().ResourceRequirements.Requests)
+			queueResources.AddV1ResourceList(job.PriorityClassName(), job.PodRequirements().ResourceRequirements.Requests)
 		}
 
 		if job.Queued() {
@@ -442,7 +442,7 @@ func (l *FairSchedulingAlgo) schedulePool(
 
 	demandByQueue, ok := fsctx.demandByPoolByQueue[pool]
 	if !ok {
-		demandByQueue = map[string]schedulerobjects.ResourceList{}
+		demandByQueue = map[string]schedulerobjects.QuantityByTAndResourceType[string]{}
 	}
 
 	now := time.Now()

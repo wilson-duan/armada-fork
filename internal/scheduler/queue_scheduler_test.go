@@ -528,7 +528,7 @@ func TestQueueScheduler(t *testing.T) {
 				err := sctx.AddQueueSchedulingContext(
 					q.Name, weight,
 					tc.InitialAllocatedByQueueAndPriorityClass[q.Name],
-					schedulerobjects.NewResourceList(0),
+					schedulerobjects.QuantityByTAndResourceType[string]{},
 					rate.NewLimiter(
 						rate.Limit(tc.SchedulingConfig.MaximumPerQueueSchedulingRate),
 						tc.SchedulingConfig.MaximumPerQueueSchedulingBurst,

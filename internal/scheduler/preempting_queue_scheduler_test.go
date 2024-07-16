@@ -1761,7 +1761,7 @@ func TestPreemptingQueueScheduler(t *testing.T) {
 				)
 			}
 
-			demandByQueue := map[string]schedulerobjects.ResourceList{}
+			demandByQueue := map[string]schedulerobjects.QuantityByTAndResourceType[string]{}
 
 			// Run the scheduler.
 			ctx := armadacontext.Background()
@@ -1778,10 +1778,15 @@ func TestPreemptingQueueScheduler(t *testing.T) {
 						queuedJobs = append(queuedJobs, job.WithQueued(true))
 						roundByJobId[job.Id()] = i
 						indexByJobId[job.Id()] = j
-						r, ok := demandByQueue[job.Queue()]
+						resourcesByPc, ok := demandByQueue[job.Queue()]
+						if !ok {
+							resourcesByPc = schedulerobjects.QuantityByTAndResourceType[string]{}
+							demandByQueue[job.Queue()] = resourcesByPc
+						}
+						r, ok := resourcesByPc[job.PriorityClassName()]
 						if !ok {
 							r = schedulerobjects.NewResourceList(len(job.PodRequirements().ResourceRequirements.Requests))
-							demandByQueue[job.Queue()] = r
+							resourcesByPc[job.PriorityClassName()] = r
 						}
 						r.AddV1ResourceList(job.PodRequirements().ResourceRequirements.Requests)
 					}
@@ -1805,10 +1810,15 @@ func TestPreemptingQueueScheduler(t *testing.T) {
 								delete(gangIdByJobId, job.Id())
 								delete(jobIdsByGangId[gangId], job.Id())
 							}
-							r, ok := demandByQueue[job.Queue()]
+							resourcesByPc, ok := demandByQueue[job.Queue()]
+							if !ok {
+								resourcesByPc = schedulerobjects.QuantityByTAndResourceType[string]{}
+								demandByQueue[job.Queue()] = resourcesByPc
+							}
+							r, ok := resourcesByPc[job.PriorityClassName()]
 							if !ok {
 								r = schedulerobjects.NewResourceList(len(job.PodRequirements().ResourceRequirements.Requests))
-								demandByQueue[job.Queue()] = r
+								resourcesByPc[job.PriorityClassName()] = r
 							}
 							r.SubV1ResourceList(job.PodRequirements().ResourceRequirements.Requests)
 						}
@@ -2208,7 +2218,7 @@ func BenchmarkPreemptingQueueScheduler(b *testing.B) {
 			)
 			for queue, priorityFactor := range priorityFactorByQueue {
 				weight := 1 / priorityFactor
-				err := sctx.AddQueueSchedulingContext(queue, weight, make(schedulerobjects.QuantityByTAndResourceType[string]), schedulerobjects.NewResourceList(0), limiterByQueue[queue])
+				err := sctx.AddQueueSchedulingContext(queue, weight, make(schedulerobjects.QuantityByTAndResourceType[string]), schedulerobjects.QuantityByTAndResourceType[string]{}, limiterByQueue[queue])
 				require.NoError(b, err)
 			}
 			constraints := schedulerconstraints.NewSchedulingConstraints(
@@ -2275,7 +2285,7 @@ func BenchmarkPreemptingQueueScheduler(b *testing.B) {
 				)
 				for queue, priorityFactor := range priorityFactorByQueue {
 					weight := 1 / priorityFactor
-					err := sctx.AddQueueSchedulingContext(queue, weight, allocatedByQueueAndPriorityClass[queue], schedulerobjects.NewResourceList(0), limiterByQueue[queue])
+					err := sctx.AddQueueSchedulingContext(queue, weight, allocatedByQueueAndPriorityClass[queue], schedulerobjects.QuantityByTAndResourceType[string]{}, limiterByQueue[queue])
 					require.NoError(b, err)
 				}
 				sch := NewPreemptingQueueScheduler(
