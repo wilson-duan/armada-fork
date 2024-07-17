@@ -217,8 +217,8 @@ func (it *JobQueueIteratorAdapter) Next() (*jobdb.Job, error) {
 }
 
 type demand struct {
-	rawDemand    schedulerobjects.QuantityByTAndResourceType[string]
-	cappedDemand schedulerobjects.QuantityByTAndResourceType[string]
+	rawDemand    schedulerobjects.ResourceList
+	cappedDemand schedulerobjects.ResourceList
 }
 
 type fairSchedulingAlgoContext struct {
@@ -326,12 +326,13 @@ func (l *FairSchedulingAlgo) newFairSchedulingAlgoContext(ctx *armadacontext.Con
 			queueDemand, ok := poolQueueDemand[job.Queue()]
 			if !ok {
 				queueDemand = &demand{
-					rawDemand:    make(schedulerobjects.QuantityByTAndResourceType[string]),
-					cappedDemand: make(schedulerobjects.QuantityByTAndResourceType[string]),
+					rawDemand:    schedulerobjects.NewResourceList(len(job.PodRequirements().ResourceRequirements.Requests)),
+					cappedDemand: schedulerobjects.NewResourceList(len(job.PodRequirements().ResourceRequirements.Requests)),
 				}
 				poolQueueDemand[job.Queue()] = queueDemand
 			}
 			queueDemand.rawDemand.AddV1ResourceList(job.PodRequirements().ResourceRequirements.Requests)
+			// TODO: Cap demand here based on scheduler
 			queueDemand.cappedDemand.AddV1ResourceList(job.PodRequirements().ResourceRequirements.Requests)
 		}
 
@@ -451,12 +452,12 @@ func (l *FairSchedulingAlgo) schedulePool(
 
 	demandByQueue, ok := fsctx.demandByPoolByQueue[pool]
 	if !ok {
-		demandByQueue = map[string]schedulerobjects.QuantityByTAndResourceType[string]{}
+		demandByQueue = map[string]*demand{}
 	}
 
 	now := time.Now()
 	for queue, priorityFactor := range fsctx.priorityFactorByQueue {
-		demand, hasDemand := demandByQueue[queue]
+		d, hasDemand := demandByQueue[queue]
 		if !hasDemand {
 			// To ensure fair share is computed only from active queues, i.e., queues with jobs queued or running.
 			continue
@@ -482,7 +483,7 @@ func (l *FairSchedulingAlgo) schedulePool(
 
 		queueLimiter.SetLimitAt(now, rate.Limit(l.schedulingConfig.MaximumPerQueueSchedulingRate))
 
-		if err := sctx.AddQueueSchedulingContext(queue, weight, allocatedByPriorityClass, demand, queueLimiter); err != nil {
+		if err := sctx.AddQueueSchedulingContext(queue, weight, allocatedByPriorityClass, d.cappedDemand, d.rawDemand, queueLimiter); err != nil {
 			return nil, nil, err
 		}
 	}
