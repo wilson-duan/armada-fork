@@ -109,6 +109,7 @@ func (sctx *SchedulingContext) AddQueueSchedulingContext(
 	queue string, weight float64,
 	initialAllocatedByPriorityClass schedulerobjects.QuantityByTAndResourceType[string],
 	demand map[string]schedulerobjects.ResourceList,
+	cappedDemand map[string]schedulerobjects.ResourceList,
 	limiter *rate.Limiter,
 ) error {
 	if _, ok := sctx.QueueSchedulingContexts[queue]; ok {
@@ -138,6 +139,7 @@ func (sctx *SchedulingContext) AddQueueSchedulingContext(
 		Limiter:                           limiter,
 		Allocated:                         allocated,
 		Demand:                            demand,
+		CappedDemand:                      cappedDemand,
 		AllocatedByPriorityClass:          initialAllocatedByPriorityClass,
 		ScheduledResourcesByPriorityClass: make(schedulerobjects.QuantityByTAndResourceType[string]),
 		EvictedResourcesByPriorityClass:   make(schedulerobjects.QuantityByTAndResourceType[string]),
