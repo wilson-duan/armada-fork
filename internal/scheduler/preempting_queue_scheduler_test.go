@@ -1761,8 +1761,10 @@ func TestPreemptingQueueScheduler(t *testing.T) {
 				)
 			}
 
-			demandByQueue := map[string]schedulerobjects.QuantityByTAndResourceType[string]{}
+			demandByQueue := map[string]schedulerobjects.ResourceList{}
+			cappedDemandByQueue := map[string]schedulerobjects.ResourceList{}
 
+			// Run the
 			// Run the scheduler.
 			ctx := armadacontext.Background()
 			for i, round := range tc.Rounds {
@@ -1778,17 +1780,12 @@ func TestPreemptingQueueScheduler(t *testing.T) {
 						queuedJobs = append(queuedJobs, job.WithQueued(true))
 						roundByJobId[job.Id()] = i
 						indexByJobId[job.Id()] = j
-						resourcesByPc, ok := demandByQueue[job.Queue()]
+						rawDemand, ok := demandByQueue[job.Queue()]
 						if !ok {
-							resourcesByPc = schedulerobjects.QuantityByTAndResourceType[string]{}
-							demandByQueue[job.Queue()] = resourcesByPc
+							rawDemand = schedulerobjects.NewResourceList(len(job.PodRequirements().ResourceRequirements.Requests))
+							demandByQueue[job.Queue()] = rawDemand
 						}
-						r, ok := resourcesByPc[job.PriorityClassName()]
-						if !ok {
-							r = schedulerobjects.NewResourceList(len(job.PodRequirements().ResourceRequirements.Requests))
-							resourcesByPc[job.PriorityClassName()] = r
-						}
-						r.AddV1ResourceList(job.PodRequirements().ResourceRequirements.Requests)
+						rawDemand.AddV1ResourceList(job.PodRequirements().ResourceRequirements.Requests)
 					}
 				}
 				err = jobDbTxn.Upsert(queuedJobs)
@@ -1810,17 +1807,12 @@ func TestPreemptingQueueScheduler(t *testing.T) {
 								delete(gangIdByJobId, job.Id())
 								delete(jobIdsByGangId[gangId], job.Id())
 							}
-							resourcesByPc, ok := demandByQueue[job.Queue()]
+							rawDemand, ok := demandByQueue[job.Queue()]
 							if !ok {
-								resourcesByPc = schedulerobjects.QuantityByTAndResourceType[string]{}
-								demandByQueue[job.Queue()] = resourcesByPc
+								rawDemand = schedulerobjects.NewResourceList(len(job.PodRequirements().ResourceRequirements.Requests))
+								demandByQueue[job.Queue()] = rawDemand
 							}
-							r, ok := resourcesByPc[job.PriorityClassName()]
-							if !ok {
-								r = schedulerobjects.NewResourceList(len(job.PodRequirements().ResourceRequirements.Requests))
-								resourcesByPc[job.PriorityClassName()] = r
-							}
-							r.SubV1ResourceList(job.PodRequirements().ResourceRequirements.Requests)
+							rawDemand.SubV1ResourceList(job.PodRequirements().ResourceRequirements.Requests)							r.SubV1ResourceList(job.PodRequirements().ResourceRequirements.Requests)
 						}
 					}
 				}
