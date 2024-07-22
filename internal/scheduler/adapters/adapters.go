@@ -3,6 +3,8 @@ package adapters
 import (
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
+	"golang.org/x/exp/maps"
+	batchv1 "k8s.io/api/batch/v1"
 	v1 "k8s.io/api/core/v1"
 	k8sResource "k8s.io/apimachinery/pkg/api/resource"
 
@@ -73,4 +75,27 @@ func K8sResourceListToMap(resources v1.ResourceList) map[string]k8sResource.Quan
 		result[string(k)] = v
 	}
 	return result
+}
+
+func PodRequirementsFromJobSpec(jobSpec *batchv1.JobSpec, priorityByPriorityClassName map[string]types.PriorityClass) *schedulerobjects.PodRequirements {
+	podSpec := &jobSpec.Template.Spec
+	priority, ok := api.PriorityFromPodSpec(podSpec, priorityByPriorityClassName)
+	if priorityByPriorityClassName != nil && !ok {
+		// Ignore this error if priorityByPriorityClassName is explicitly set to nil.
+		// We assume that in this case the caller is sure the priority does not need to be set.
+		err := errors.Errorf("unknown priorityClassName %s", podSpec.PriorityClassName)
+		logging.WithStacktrace(logrus.NewEntry(logrus.New()), err).Error("failed to get priority from priorityClassName")
+	}
+	preemptionPolicy := string(v1.PreemptLowerPriority)
+	if podSpec.PreemptionPolicy != nil {
+		preemptionPolicy = string(*podSpec.PreemptionPolicy)
+	}
+	return &schedulerobjects.PodRequirements{
+		NodeSelector:         podSpec.NodeSelector,
+		Affinity:             podSpec.Affinity,
+		Tolerations:          podSpec.Tolerations,
+		Priority:             priority,
+		PreemptionPolicy:     preemptionPolicy,
+		ResourceRequirements: api.CalculateResourceRequirements(podSpec, jobSpec, v1.ResourceRequirements{}),
+	}
 }

@@ -110,16 +110,45 @@ func validateHasNamespace(j *api.JobSubmitRequestItem, _ configuration.Submissio
 
 // Validates that the JobSubmitRequestItem has exactly one podspec defined.
 func validateHasPodSpec(j *api.JobSubmitRequestItem, _ configuration.SubmissionConfig) error {
-	if j.PodSpec == nil && len(j.PodSpecs) == 0 {
-		return errors.Errorf("Job must contain at least one PodSpec")
+	hasAtleastOneJobSpec := j.JobSpec != nil || len(j.JobSpecs) > 0
+	hasAtLeastOnePodSpec := j.PodSpec != nil || len(j.PodSpecs) > 0
+	if !hasAtleastOneJobSpec && !hasAtLeastOnePodSpec {
+		return errors.Errorf("Job does not contain at least one JobSpec or PodSpec")
+	}
+	if hasAtleastOneJobSpec && hasAtLeastOnePodSpec {
+		return errors.Errorf("Job contains both JobSpec and PodSpec")
+	}
+	if hasAtleastOneJobSpec {
+		if j.JobSpec == nil && len(j.JobSpecs) == 1 {
+			j.JobSpec = j.JobSpecs[0]
+			j.JobSpecs = nil
+		}
+		if len(j.JobSpecs) > 1 {
+			return errors.Errorf("Jobs with multiple job specs are not supported")
+		}
+		j.PodSpec = &j.JobSpec.Template.Spec
 	}
 
+	// We only support jobs with a single PodSpec, and it must be set to j.PodSpec.
+	if j.PodSpec == nil && len(j.PodSpecs) == 1 {
+		j.PodSpec = j.PodSpecs[0]
+		j.PodSpecs = nil
+	}
+
+	// I'm not convinced that the code to create services/ingresses when multiple pods are submitted is correct.
+	// In particular, I think job.populateServicesIngresses is wrong.
+	// Hence, we return an error until we can make sure that the code is correct.
+	// The next error is redundant with this one, but we leave both since we may wish to remove this one.
+	// - Albin
+	if len(j.PodSpecs) > 0 {
+		return errors.Errorf("Jobs with multiple pods are not supported")
+	}
+
+	// I'm not convinced the code is correct when combining j.PodSpec and j.PodSpecs.
+	// We should do more testing to make sure it's safe before we allow it.
+	// - Albin
 	if len(j.PodSpecs) > 0 && j.PodSpec != nil {
 		return errors.Errorf("PodSpec must be nil if PodSpecs is provided (i.e., these are exclusive)")
-	}
-
-	if len(j.PodSpecs) > 1 {
-		return errors.Errorf("Jobs with multiple pods are not supported")
 	}
 
 	return nil

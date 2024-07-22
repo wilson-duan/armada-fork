@@ -2,6 +2,8 @@ package api
 
 import (
 	"fmt"
+	batchv1 "k8s.io/api/batch/v1"
+	"math"
 	"strings"
 
 	v1 "k8s.io/api/core/v1"
@@ -75,6 +77,14 @@ func SchedulingResourceRequirementsFromPodSpec(podSpec *v1.PodSpec) v1.ResourceR
 }
 
 func (job *Job) GetMainPodSpec() *v1.PodSpec {
+	if job.JobSpec != nil {
+		return &job.JobSpec.Template.Spec
+	}
+	for _, jobSpec := range job.JobSpecs {
+		if jobSpec != nil {
+			return &jobSpec.Template.Spec
+		}
+	}
 	if job.PodSpec != nil {
 		return job.PodSpec
 	}
@@ -87,12 +97,18 @@ func (job *Job) GetMainPodSpec() *v1.PodSpec {
 }
 
 func (job *JobSubmitRequestItem) GetMainPodSpec() *v1.PodSpec {
-	if job.PodSpec != nil {
+	switch {
+	case job.JobSpec != nil:
+		return &job.JobSpec.Template.Spec
+	case job.PodSpec != nil:
 		return job.PodSpec
-	} else if len(job.PodSpecs) > 0 {
+	case len(job.PodSpecs) > 0:
 		return job.PodSpecs[0]
+	case len(job.JobSpecs) > 0:
+		return &job.JobSpecs[0].Template.Spec
+	default:
+		return nil
 	}
-	return nil
 }
 
 func ShortStringFromEventMessages(msgs []*EventMessage) string {

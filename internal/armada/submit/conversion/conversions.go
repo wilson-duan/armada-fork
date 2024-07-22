@@ -29,28 +29,53 @@ func SubmitJobFromApiRequest(
 	priority := PriorityAsInt32(jobReq.GetPriority())
 	ingressesAndServices := convertIngressesAndServices(jobReq, jobIdStr, jobSetId, queue, owner)
 
-	msg := &armadaevents.SubmitJob{
-		JobId:           jobId,
-		JobIdStr:        jobIdStr,
-		DeduplicationId: jobReq.GetClientId(),
-		Priority:        priority,
-		ObjectMeta: &armadaevents.ObjectMeta{
-			Namespace:   jobReq.GetNamespace(),
-			Annotations: jobReq.GetAnnotations(),
-			Labels:      jobReq.GetLabels(),
-		},
-		MainObject: &armadaevents.KubernetesMainObject{
-			Object: &armadaevents.KubernetesMainObject_PodSpec{
-				PodSpec: &armadaevents.PodSpecWithAvoidList{
-					PodSpec: jobReq.GetMainPodSpec(),
+	if jobReq.JobSpec != nil {
+		msg := &armadaevents.SubmitJob{
+			JobId:           jobId,
+			JobIdStr:        jobIdStr,
+			DeduplicationId: jobReq.GetClientId(),
+			Priority:        priority,
+			ObjectMeta: &armadaevents.ObjectMeta{
+				Namespace:   jobReq.GetNamespace(),
+				Annotations: jobReq.GetAnnotations(),
+				Labels:      jobReq.GetLabels(),
+			},
+			MainObject: &armadaevents.KubernetesMainObject{
+				Object: &armadaevents.KubernetesMainObject_PodSpec{
+					JobSpec: &armadaevents.PodSpecWithAvoidList{
+						JobSpec: jobReq.GetMainPodSpec(),
+					},
 				},
 			},
-		},
-		Objects:   ingressesAndServices,
-		Scheduler: jobReq.Scheduler,
+			Objects:   ingressesAndServices,
+			Scheduler: jobReq.Scheduler,
+		}
+		postProcess(msg, config)
+		return msg
+	} else {
+		msg := &armadaevents.SubmitJob{
+			JobId:           jobId,
+			JobIdStr:        jobIdStr,
+			DeduplicationId: jobReq.GetClientId(),
+			Priority:        priority,
+			ObjectMeta: &armadaevents.ObjectMeta{
+				Namespace:   jobReq.GetNamespace(),
+				Annotations: jobReq.GetAnnotations(),
+				Labels:      jobReq.GetLabels(),
+			},
+			MainObject: &armadaevents.KubernetesMainObject{
+				Object: &armadaevents.KubernetesMainObject_PodSpec{
+					PodSpec: &armadaevents.PodSpecWithAvoidList{
+						PodSpec: jobReq.GetMainPodSpec(),
+					},
+				},
+			},
+			Objects:   ingressesAndServices,
+			Scheduler: jobReq.Scheduler,
+		}
+		postProcess(msg, config)
+		return msg
 	}
-	postProcess(msg, config)
-	return msg
 }
 
 // Creates KubernetesObjects representing ingresses and services from the *api.JobSubmitRequestItem.
