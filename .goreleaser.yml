@@ -113,15 +113,6 @@ builds:
     goarch:
       - amd64
   - env: [CGO_ENABLED=0]
-    id: fakeexecutor
-    binary: fakeexecutor
-    main: ./cmd/fakeexecutor/main.go
-    mod_timestamp: '{{ .CommitTimestamp }}'
-    goos:
-      - linux
-    goarch:
-      - amd64
-  - env: [CGO_ENABLED=0]
     id: armadactl
     binary: armadactl
     main: ./cmd/armadactl/main.go
@@ -242,7 +233,6 @@ dockers:
       - scheduleringester
       - lookoutv2
       - lookoutingesterv2
-      - fakeexecutor
     extra_files:
       - config/armada/config.yaml
       - config/executor/config.yaml
@@ -284,20 +274,6 @@ dockers:
     extra_files:
       - config/executor/config.yaml
     dockerfile: ./build_goreleaser/executor/Dockerfile
-
-  - id: fakeexecutor
-    use: buildx
-    goos: linux
-    goarch: amd64
-    image_templates:
-      - "{{ .Env.DOCKER_REPO }}armada-fakeexecutor:latest"
-      - "{{ .Env.DOCKER_REPO }}armada-fakeexecutor:{{ .Version }}"
-    build_flag_templates: *BUILD_FLAG_TEMPLATES
-    ids:
-      - fakeexecutor
-    extra_files:
-      - config/executor/config.yaml
-    dockerfile: ./build_goreleaser/fakeexecutor/Dockerfile
 
   - id: armadaloadtester
     use: buildx
@@ -425,6 +401,7 @@ dockers:
     dockerfile: ./build_goreleaser/armadactl/Dockerfile
 
 changelog:
+  skip: true
   use:
     github
   sort: asc
