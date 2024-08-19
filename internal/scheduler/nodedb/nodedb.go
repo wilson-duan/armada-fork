@@ -452,24 +452,29 @@ func (nodeDb *NodeDb) ScheduleManyWithTxn(txn *memdb.Txn, gctx *schedulercontext
 
 		node, err := nodeDb.SelectNodeForJobWithTxn(txn, jctx)
 		if err != nil {
+			fmt.Printf("error 1\n")
 			return false, err
 		}
 
 		if node != nil {
 			// If we found a node for this pod, bind it and continue to the next pod.
 			if node, err := nodeDb.bindJobToNode(node, jctx.Job, jctx.PodSchedulingContext.ScheduledAtPriority); err != nil {
+				fmt.Printf("error 2\n")
 				return false, err
 			} else {
 				if err := nodeDb.UpsertWithTxn(txn, node); err != nil {
+					fmt.Printf("error 3\n")
 					return false, err
 				}
 			}
 
 			// Once a job is scheduled, it should no longer be considered for preemption.
 			if err := deleteEvictedJobSchedulingContextIfExistsWithTxn(txn, jctx.JobId); err != nil {
+				fmt.Printf("error 4\n")
 				return false, err
 			}
 		} else {
+			fmt.Printf("error 5\n")
 			return false, nil
 		}
 	}

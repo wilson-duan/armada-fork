@@ -23,22 +23,14 @@ env:
 
 builds:
   - env: [CGO_ENABLED=0]
-    id: armadactl
-    binary: armadactl
-    main: ./cmd/armadactl/main.go
+    id: scheduler
+    binary: scheduler
+    main: ./cmd/scheduler/main.go
     mod_timestamp: '{{ .CommitTimestamp }}'
-    ldflags:
-      - -X github.com/armadaproject/armada/internal/armadactl/build.ReleaseVersion={{.Version}}
-      - -X github.com/armadaproject/armada/internal/armadactl/build.GitCommit={{.FullCommit}}
-      - -X github.com/armadaproject/armada/internal/armadactl/build.BuildTime={{.Date}}
-      - -X github.com/armadaproject/armada/internal/armadactl/build.GoVersion={{.Env.GOVERSION}}
     goos:
-      - windows
-      - darwin
       - linux
     goarch:
       - amd64
-      - arm64
 
 source:
   enabled: true
@@ -91,12 +83,7 @@ dockers:
       - --label=org.opencontainers.image.licenses=Apache-2.0
       - --label=org.opencontainers.image.vendor=G-Research
     ids:
-      - server
-      - executor
-      - binoculars
-      - eventingester
       - scheduler
-      - scheduleringester
     extra_files:
       - config/armada/config.yaml
       - config/executor/config.yaml
@@ -105,171 +92,6 @@ dockers:
       - config/scheduler/config.yaml
       - config/scheduleringester/config.yaml
     dockerfile: ./build_goreleaser/bundles/armada/Dockerfile
-
-  - id: lookout-bundle
-    use: buildx
-    goos: linux
-    goarch: amd64
-    image_templates:
-      - "{{ .Env.DOCKER_REPO }}armada-lookout-bundle:latest"
-      - "{{ .Env.DOCKER_REPO }}armada-lookout-bundle:{{ .Version }}"
-    build_flag_templates: *BUILD_FLAG_TEMPLATES
-    ids:
-      - lookoutv2
-      - lookoutingesterv2
-    extra_files:
-      - config/lookoutv2/config.yaml
-      - config/lookoutingesterv2/config.yaml
-      - internal/lookout/ui
-      - pkg/api/api.swagger.json
-      - pkg/api/binoculars/api.swagger.json
-    dockerfile: ./build_goreleaser/bundles/lookout/Dockerfile
-
-  - id: full-bundle
-    use: buildx
-    goos: linux
-    goarch: amd64
-    image_templates:
-      - "{{ .Env.DOCKER_REPO }}armada-full-bundle:latest"
-      - "{{ .Env.DOCKER_REPO }}armada-full-bundle:{{ .Version }}"
-    build_flag_templates: *BUILD_FLAG_TEMPLATES
-    ids:
-      - server
-      - executor
-      - binoculars
-      - eventingester
-      - armadactl
-      - scheduler
-      - scheduleringester
-      - lookoutv2
-      - lookoutingesterv2
-      - fakeexecutor
-    extra_files:
-      - config/armada/config.yaml
-      - config/executor/config.yaml
-      - config/binoculars/config.yaml
-      - config/eventingester/config.yaml
-      - config/scheduler/config.yaml
-      - config/scheduleringester/config.yaml
-      - config/lookoutv2/config.yaml
-      - config/lookoutingesterv2/config.yaml
-      - internal/lookout/ui
-      - pkg/api/api.swagger.json
-      - pkg/api/binoculars/api.swagger.json
-    dockerfile: ./build_goreleaser/bundles/full/Dockerfile
-
-  - id: server
-    use: buildx
-    goos: linux
-    goarch: amd64
-    image_templates:
-      - "{{ .Env.DOCKER_REPO }}armada-server:latest"
-      - "{{ .Env.DOCKER_REPO }}armada-server:{{ .Version }}"
-    build_flag_templates: *BUILD_FLAG_TEMPLATES
-    ids:
-      - server
-    extra_files:
-      - config/armada/config.yaml
-    dockerfile: ./build_goreleaser/server/Dockerfile
-
-  - id: executor
-    use: buildx
-    goos: linux
-    goarch: amd64
-    image_templates:
-      - "{{ .Env.DOCKER_REPO }}armada-executor:latest"
-      - "{{ .Env.DOCKER_REPO }}armada-executor:{{ .Version }}"
-    build_flag_templates: *BUILD_FLAG_TEMPLATES
-    ids:
-      - executor
-    extra_files:
-      - config/executor/config.yaml
-    dockerfile: ./build_goreleaser/executor/Dockerfile
-
-  - id: fakeexecutor
-    use: buildx
-    goos: linux
-    goarch: amd64
-    image_templates:
-      - "{{ .Env.DOCKER_REPO }}armada-fakeexecutor:latest"
-      - "{{ .Env.DOCKER_REPO }}armada-fakeexecutor:{{ .Version }}"
-    build_flag_templates: *BUILD_FLAG_TEMPLATES
-    ids:
-      - fakeexecutor
-    extra_files:
-      - config/executor/config.yaml
-    dockerfile: ./build_goreleaser/fakeexecutor/Dockerfile
-
-  - id: armadaloadtester
-    use: buildx
-    goos: linux
-    goarch: amd64
-    image_templates:
-      - "{{ .Env.DOCKER_REPO }}armada-loadtester:latest"
-      - "{{ .Env.DOCKER_REPO }}armada-loadtester:{{ .Version }}"
-    build_flag_templates: *BUILD_FLAG_TEMPLATES
-    ids:
-      - armadaloadtester
-    dockerfile: ./build_goreleaser/loadtester/Dockerfile
-
-  - id: testsuite
-    use: buildx
-    goos: linux
-    goarch: amd64
-    image_templates:
-      - "{{ .Env.DOCKER_REPO }}armada-testsuite:latest"
-      - "{{ .Env.DOCKER_REPO }}armada-testsuite:{{ .Version }}"
-    build_flag_templates: *BUILD_FLAG_TEMPLATES
-    ids:
-      - testsuite
-    dockerfile: ./build_goreleaser/testsuite/Dockerfile
-
-  - id: lookoutingesterv2
-    use: buildx
-    goos: linux
-    goarch: amd64
-    image_templates:
-      - "{{ .Env.DOCKER_REPO }}armada-lookout-ingester-v2:latest"
-      - "{{ .Env.DOCKER_REPO }}armada-lookout-ingester-v2:{{ .Version }}"
-    build_flag_templates: *BUILD_FLAG_TEMPLATES
-    ids:
-      - lookoutingesterv2
-    extra_files:
-      - config/lookoutingesterv2/config.yaml
-    dockerfile: ./build_goreleaser/lookoutingesterv2/Dockerfile
-
-  - id: lookoutv2
-    use: buildx
-    goos: linux
-    goarch: amd64
-    image_templates:
-      - "{{ .Env.DOCKER_REPO }}armada-lookout-v2:latest"
-      - "{{ .Env.DOCKER_REPO }}armada-lookout-v2:{{ .Version }}"
-    build_flag_templates: *BUILD_FLAG_TEMPLATES
-    ids:
-      - lookoutv2
-      - lookoutingesterv2
-    extra_files:
-      - internal/lookout/ui
-      - pkg/api/api.swagger.json
-      - pkg/api/binoculars/api.swagger.json
-      - config/lookoutv2/config.yaml
-      - config/lookoutingesterv2/config.yaml
-    dockerfile: ./build_goreleaser/lookoutv2/Dockerfile
-
-  - id: eventingester
-    use: buildx
-    goos: linux
-    goarch: amd64
-    image_templates:
-      - "{{ .Env.DOCKER_REPO }}armada-event-ingester:latest"
-      - "{{ .Env.DOCKER_REPO }}armada-event-ingester:{{ .Version }}"
-    build_flag_templates: *BUILD_FLAG_TEMPLATES
-    ids:
-      - eventingester
-    extra_files:
-      - config/eventingester/config.yaml
-    dockerfile: ./build_goreleaser/eventingester/Dockerfile
 
   - id: scheduler
     use: buildx
@@ -298,32 +120,6 @@ dockers:
     extra_files:
       - config/scheduleringester/config.yaml
     dockerfile: ./build_goreleaser/scheduleringester/Dockerfile
-
-  - id: binoculars
-    use: buildx
-    goos: linux
-    goarch: amd64
-    image_templates:
-      - "{{ .Env.DOCKER_REPO }}armada-binoculars:latest"
-      - "{{ .Env.DOCKER_REPO }}armada-binoculars:{{ .Version }}"
-    build_flag_templates: *BUILD_FLAG_TEMPLATES
-    ids:
-      - binoculars
-    extra_files:
-      - config/binoculars/config.yaml
-    dockerfile: ./build_goreleaser/binoculars/Dockerfile
-
-  - id: armadactl
-    use: buildx
-    goos: linux
-    goarch: amd64
-    image_templates:
-      - "{{ .Env.DOCKER_REPO }}armadactl:latest"
-      - "{{ .Env.DOCKER_REPO }}armadactl:{{ .Version }}"
-    build_flag_templates: *BUILD_FLAG_TEMPLATES
-    ids:
-      - armadactl
-    dockerfile: ./build_goreleaser/armadactl/Dockerfile
 
 changelog:
   skip: true
