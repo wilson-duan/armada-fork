@@ -66,33 +66,6 @@ sboms:
 #   - artifacts: checksum
 
 dockers:
-  - id: bundle
-    use: buildx
-    goos: linux
-    goarch: amd64
-    image_templates:
-      - "{{ .Env.DOCKER_REPO }}armada-bundle:latest"
-      - "{{ .Env.DOCKER_REPO }}armada-bundle:{{ .Version }}"
-    build_flag_templates: &BUILD_FLAG_TEMPLATES
-      - --builder={{ .Env.DOCKER_BUILDX_BUILDER }}
-      - --label=org.opencontainers.image.source=https://github.com/armadaproject/armada
-      - --label=org.opencontainers.image.version={{ .Version }}
-      - --label=org.opencontainers.image.created={{ time "2006-01-02T15:04:05Z07:00" }}
-      - --label=org.opencontainers.image.revision={{ .FullCommit }}
-      - --label=org.opencontainers.image.base.name=alpine:3.20.2
-      - --label=org.opencontainers.image.licenses=Apache-2.0
-      - --label=org.opencontainers.image.vendor=G-Research
-    ids:
-      - scheduler
-    extra_files:
-      - config/armada/config.yaml
-      - config/executor/config.yaml
-      - config/binoculars/config.yaml
-      - config/eventingester/config.yaml
-      - config/scheduler/config.yaml
-      - config/scheduleringester/config.yaml
-    dockerfile: ./build_goreleaser/bundles/armada/Dockerfile
-
   - id: scheduler
     use: buildx
     goos: linux
