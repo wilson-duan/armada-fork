@@ -762,9 +762,12 @@ func (nodeDb *NodeDb) selectNodeForPodWithItAtPriority(
 	onlyCheckDynamicRequirements bool,
 ) (*internaltypes.Node, error) {
 	var selectedNode *internaltypes.Node
+	counter := 0
 	for obj := it.Next(); obj != nil; obj = it.Next() {
+		counter += 1
 		node := obj.(*internaltypes.Node)
 		if node == nil {
+			fmt.Printf("got %d, %s\n", counter, obj)
 			return nil, nil
 		}
 
