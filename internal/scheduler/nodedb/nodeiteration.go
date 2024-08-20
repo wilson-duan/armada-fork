@@ -3,6 +3,7 @@ package nodedb
 import (
 	"bytes"
 	"container/heap"
+	"fmt"
 
 	"github.com/hashicorp/go-memdb"
 	"github.com/pkg/errors"
@@ -189,6 +190,7 @@ func NewNodeTypesIterator(
 		if node == nil {
 			continue
 		}
+		fmt.Printf("iterator: %s\n", it)
 		heap.Push(pq, &nodeTypesIteratorPQItem{
 			node: node,
 			it:   it,
