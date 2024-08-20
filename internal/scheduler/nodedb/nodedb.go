@@ -750,6 +750,8 @@ func (nodeDb *NodeDb) selectNodeForPodAtPriority(
 		return node, nil
 	}
 
+	node, err := nodeDb.selectNodeForPodWithItAtPriority(it, jctx, priority, false)
+	fmt.Printf("new print: %s, %s\n", node, err)
 	return nil, nil
 }
 
