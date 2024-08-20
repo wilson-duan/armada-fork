@@ -751,7 +751,7 @@ func (nodeDb *NodeDb) selectNodeForPodAtPriority(
 	}
 
 	node, err := nodeDb.selectNodeForPodWithItAtPriority(it, jctx, priority, false)
-	fmt.Printf("new print: %s, %s\n", node, err)
+	fmt.Printf("new print: %s, %s, %s\n", node, err, it)
 	return nil, nil
 }
 
