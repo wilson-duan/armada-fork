@@ -631,6 +631,7 @@ func (nodeDb *NodeDb) selectNodeForJobWithTxnAtPriority(
 	} else if err := assertPodSchedulingContextNode(pctx, node); err != nil {
 		return nil, err
 	} else if node == nil {
+		fmt.Printf("depth: 1\n")
 		return nil, nil
 	}
 	pctx.NodeId = ""
@@ -658,7 +659,7 @@ func (nodeDb *NodeDb) selectNodeForJobWithTxnAtPriority(
 	} else if node != nil {
 		return node, nil
 	}
-
+	fmt.Printf("depth: 2\n")
 	return nil, nil
 }
 
