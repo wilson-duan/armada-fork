@@ -528,11 +528,14 @@ func (nodeDb *NodeDb) SelectNodeForJobWithTxn(txn *memdb.Txn, jctx *schedulercon
 	// If the nodeIdLabel selector is set, consider only that node.
 	if nodeId := jctx.GetAssignedNodeId(); nodeId != "" {
 		if it, err := txn.Get("nodes", "id", nodeId); err != nil {
+			fmt.Printf("test 1\n")
 			return nil, errors.WithStack(err)
 		} else {
 			if node, err := nodeDb.selectNodeForPodWithItAtPriority(it, jctx, priority, true); err != nil {
+				fmt.Printf("test 2\n")
 				return nil, err
 			} else {
+				fmt.Printf("test 3\n")
 				return node, nil
 			}
 		}
@@ -540,23 +543,27 @@ func (nodeDb *NodeDb) SelectNodeForJobWithTxn(txn *memdb.Txn, jctx *schedulercon
 
 	node, err := nodeDb.selectNodeForJobWithTxnAtPriority(txn, jctx)
 	if err != nil {
+		fmt.Printf("test 4\n")
 		return nil, err
 	}
 	if node != nil {
+		fmt.Printf("test 5\n")
 		return node, nil
 	}
 
 	for _, awayNodeType := range priorityClass.AwayNodeTypes {
 		node, err := nodeDb.selectNodeForJobWithTxnAndAwayNodeType(txn, jctx, awayNodeType)
 		if err != nil {
+			fmt.Printf("test 6\n")
 			return nil, err
 		}
 		if node != nil {
 			pctx.WellKnownNodeTypeName = awayNodeType.WellKnownNodeTypeName
+			fmt.Printf("test 7\n")
 			return node, nil
 		}
 	}
-
+	fmt.Printf("test 8\n")
 	return nil, nil
 }
 
