@@ -542,6 +542,7 @@ func (nodeDb *NodeDb) SelectNodeForJobWithTxn(txn *memdb.Txn, jctx *schedulercon
 	}
 
 	node, err := nodeDb.selectNodeForJobWithTxnAtPriority(txn, jctx)
+	fmt.Printf("here 1: %s, %s\n", node, err)
 	if err != nil {
 		fmt.Printf("test 4\n")
 		return nil, err
@@ -551,8 +552,9 @@ func (nodeDb *NodeDb) SelectNodeForJobWithTxn(txn *memdb.Txn, jctx *schedulercon
 		return node, nil
 	}
 
-	for _, awayNodeType := range priorityClass.AwayNodeTypes {
+	for j, awayNodeType := range priorityClass.AwayNodeTypes {
 		node, err := nodeDb.selectNodeForJobWithTxnAndAwayNodeType(txn, jctx, awayNodeType)
+		fmt.Printf("here %d, %s, %s\n", j, node, err)
 		if err != nil {
 			fmt.Printf("test 6\n")
 			return nil, err
